@@ -32,7 +32,7 @@ namespace ConsoleApplication3
                 }
                 catch
                 {
-                    Console.WriteLine("Can't open connection");
+                    Console.WriteLine("Can't open a connection");
                 }
 
             }
