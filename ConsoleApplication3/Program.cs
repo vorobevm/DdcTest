@@ -15,8 +15,9 @@ namespace ConsoleApplication3
             DbOperations db = new DbOperations("data source=.\\mssql14;initial catalog=ddc;integrated security=false;user id=test_ddc;password=test3r;connect timeout=60000;encrypt=False;trustservercertificate=False;MultipleActiveResultSets=True;App=EntityFramework");
             Console.WriteLine(db.GetState());
             Console.WriteLine(db.CreateNewPeriod());
+            db.RemoveLastPeriod();
+            Console.WriteLine(db.CreateNewSupplier());
             Console.ReadLine();
-            db.RemoveLastPeriod();            
         }
 
         class DbOperations
@@ -73,6 +74,39 @@ namespace ConsoleApplication3
             {
                 SqlCommand sql = new SqlCommand("delete from ddc.ddc.Period where id in (select top 1 id from ddc.ddc.Period order by id desc)", this.GetConnection());
                 sql.ExecuteNonQuery();
+            }
+
+            public string CreateNewSupplier()
+            {
+                Random _random = new Random();
+                SqlCommand sql = new SqlCommand("select top 1 id from ddc.ddc.supplier order by id desc", this.conn);
+                var reader = sql.ExecuteReader();
+                if (reader.Read())
+                {
+                    string name = RandomString(35);
+                    string id = reader.GetValue(0).ToString() + _random.Next(1, 50);
+                    sql = new SqlCommand("insert into ddc.ddc.supplier (id, Title, IsVirtual) values (" + id + ",'" + name +"',0)", this.GetConnection());
+                    sql.ExecuteNonQuery();
+                    return id;
+                }
+                else
+                {
+                    return "";
+                }
+            }
+
+            private string RandomString(int size)
+            {
+                StringBuilder builder = new StringBuilder();
+                Random random = new Random();
+                char ch;
+                for (int i = 0; i < size; i++)
+                {
+                    ch = Convert.ToChar(Convert.ToInt32(Math.Floor(26 * random.NextDouble() + 65)));
+                    builder.Append(ch);
+                }
+
+                return builder.ToString();
             }
 
             ~DbOperations()
