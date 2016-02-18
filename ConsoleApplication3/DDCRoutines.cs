@@ -11,6 +11,7 @@ namespace ConsoleApplication3
     {
         DbOperations dbContext;
         Supplier newSupplier;
+        string newPeriod;
 
         public DDCRoutines(DbOperations db)
         {
@@ -32,7 +33,8 @@ namespace ConsoleApplication3
             //Check the reader has data:
             if (reader.Read())
             {
-                return reader.GetValue(0).ToString();
+                newPeriod = reader.GetValue(0).ToString();
+                return newPeriod;
             }
             else
             {
@@ -53,9 +55,9 @@ namespace ConsoleApplication3
         }
 
         /// <summary>
-        /// Creates a new supplier with random name
+        /// Creates a new supplier with random Title
         /// </summary>
-        /// <returns>The name of created supplier.</returns>
+        /// <returns>The Title and Id of created supplier.</returns>
         public Supplier CreateNewSupplier()
         {
             this.newSupplier.Name = RandomString(42);
@@ -98,6 +100,9 @@ namespace ConsoleApplication3
             return newSupplier.Id;
         }
 
+        /// <summary>
+        /// Create new Contract using provided data. Output - ContractNumber.
+        /// </summary>
         public string CreateContract(string SupplierId, DateTime SignDate, DateTime StartDate, DateTime FinishDate)
         {
             if (SupplierId == "")
@@ -121,14 +126,82 @@ namespace ConsoleApplication3
             }
         }
 
-        public string CreateCondition()
+        public string CreateCondition(DateTime StartDate, DateTime FinishDate, string ContractId, DateTime CreateDate)
         {
+            SqlCommand sql = new SqlCommand("insert into ddc.ddc.condition (StartDate, FinishDate, AmountPercent, AmountQty, ContractId, CreateDate, CreateUser, EditDate, EditUser, Status, AllBrandsSelected, AllProductsSelected, BusinessDomainId, IsDeleted)" +
+            "Values('" + StartDate.ToString() + "', cast('" + FinishDate.ToString() + "' as Datetime), 100, 1, " + ContractId + ", SYSDATETIME(), 'TEST', SYSDATETIME(), 'TEST', 1, 0, 0, 2, 0)", dbContext.GetConnection());
+            sql.ExecuteNonQuery();
+            sql = new SqlCommand("select top 1 id from ddc.ddc.Condition order by id desc", dbContext.GetConnection());
+            var reader = sql.ExecuteReader();
+            if (reader.Read())
+            {
+                return reader.GetValue(0).ToString();
+            }
+            else
+            {
+                throw new Exception("Condition wasn't created or already deleted.");
+            }
             // insert into ddc.ddc.condition (StartDate, FinishDate, AmountPercent, AmountQty, ContractId, CreateDate, CreateUser, EditDate, EditUser, Status, AllBrandsSelected, AllProductsSelected, BusinessDomainId, IsDeleted)
             // values(cast('2015-02-03 12:00:00' as Datetime), cast('2020-02-03 12:00:00' as Datetime), 100, 1, 5, SYSDATETIME(), 'TEST', sysdatetime(), 'TEST', 1, 0, 0, 2, 0);
-            return "";
         }
 
-        private string RandomString(int size)
+        public void RemoveCondition(string ConditionId)
+        {
+            SqlCommand sql = new SqlCommand("delete ddc.ddc.Condition where id = '" + ConditionId + "'", dbContext.GetConnection());
+            sql.ExecuteNonQuery();
+        }
+
+        public string CreateGoodsRecord(string SAP_CODE, string POS_NO, string BUCH_NO, string PREIS, string BUCH_SUB_TYP, string ART_NO, DateTime WARENEINGANG, string MENGE, string LIEF_NO, string BESTELL_NO, string BS_POS, string ROWVER, string WAEHRUNG)
+        {
+            SqlCommand sql = new SqlCommand("insert into ddc.ddc.GoodsRecord (SAP_CODE, POS_NO, BUCH_NO, PREIS, BUCH_SUB_TYP, ART_NO, WARENEINGANG, MENGE, LIEF_NO, BESTELL_NO, BS_POS, ROWVER, WAEHRUNG)" + " Values('" + SAP_CODE + 
+                "'," + POS_NO + "," + 
+                BUCH_NO + "," + 
+                PREIS + ", '" + 
+                BUCH_SUB_TYP + "'," + 
+                ART_NO + "," + 
+                "cast ('" + WARENEINGANG.ToString() + "' as Date)," + 
+                MENGE + "," + 
+                LIEF_NO + "," + 
+                BESTELL_NO + "," + 
+                BS_POS + ",'" +
+                ROWVER + "', '" +
+                WAEHRUNG + "')", dbContext.GetConnection());
+            sql.ExecuteNonQuery();
+            return "bzz";
+        }
+
+
+        public Boolean CheckExpectedPeriodCalc(string PeriodId, string ConditionId, string Status, string Discount, string SAP_CODE, string ART_NO, string LIEF_NO)
+        {
+            SqlCommand sql = new SqlCommand("select count(*) from ddc.ddc.PeriodCalculation" + 
+                " where PeriodId=" + PeriodId +
+                " AND ConditionId=" + ConditionId +
+                " AND Status=" + Status +
+                " AND Discount=" + Discount +
+                " AND SAP_CODE='" + SAP_CODE + "'" +
+                " AND ART_NO =" + ART_NO + 
+                " AND LIEF_NO='" + LIEF_NO +"'", dbContext.GetConnection());
+            var reader = sql.ExecuteReader();
+            if (reader.Read())
+            {
+                if (Int32.Parse(reader.GetValue(0).ToString())>0)
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+                
+            }
+            else
+            {
+                throw new Exception();
+            }
+
+        }
+
+        public string RandomString(int size)
         {
             StringBuilder builder = new StringBuilder();
             Random random = new Random();
