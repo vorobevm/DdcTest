@@ -11,12 +11,28 @@ namespace ConsoleApplication3
     {
         DbOperations dbContext;
         Supplier newSupplier;
-        string newPeriod;
+        Period newPeriod;       
 
         public DDCRoutines(DbOperations db)
         {
             dbContext = db;
             newSupplier = new Supplier();
+        }
+
+        public class Period
+        {
+            public string Id;
+            public DateTime StartDate;
+            public DateTime FinishDate;
+            public string Name;
+            
+            public Period(string id, DateTime startDate, DateTime finishDate, string name)
+            {
+                Id = id;
+                StartDate = startDate;
+                FinishDate = finishDate;
+                Name = name;
+            }
         }
 
         public string CreateNewPeriod()
@@ -28,13 +44,13 @@ namespace ConsoleApplication3
                                             "when Name like '20[0-9]9 Q4' then substring(Name, 1, 2) + cast(cast(substring(Name, 3, 1) as int) + 1 as nvarchar) + '0 Q1'" +
                                             "end as [Name] from(select top 1 * from ddc.ddc.Period order by id desc) t", dbContext.GetConnection());
             sql.ExecuteNonQuery();
-            sql = new SqlCommand("select top 1 id from ddc.ddc.Period order by id desc", dbContext.GetConnection());
+            sql = new SqlCommand("select top 1 id, startdate, finishdate, name from ddc.ddc.Period order by id desc", dbContext.GetConnection());
             var reader = sql.ExecuteReader();
             //Check the reader has data:
             if (reader.Read())
             {
-                newPeriod = reader.GetValue(0).ToString();
-                return newPeriod;
+                newPeriod = new Period(reader.GetValue(0).ToString(), DateTime.Parse(reader.GetValue(1).ToString()), DateTime.Parse(reader.GetValue(2).ToString()), reader.GetValue(3).ToString());
+                return newPeriod.Id;
             }
             else
             {

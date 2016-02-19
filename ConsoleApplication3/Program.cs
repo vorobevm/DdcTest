@@ -16,7 +16,7 @@ namespace ConsoleApplication3
             DbOperations db = new DbOperations("data source=.\\mssql14;initial catalog=ddc;integrated security=false;user id=test_ddc;password=test3r;connect timeout=60000;encrypt=False;trustservercertificate=False;MultipleActiveResultSets=True;App=EntityFramework");
             DDCRoutines ddc = new DDCRoutines(db);
             Console.WriteLine(db.GetState());
-            //Console.WriteLine(ddc.CreateNewPeriod());
+            Console.WriteLine(ddc.CreateNewPeriod());
             //db.RemoveLastPeriod();
             ddc.CreateNewSupplier();
             Console.WriteLine(ddc.GetSupplierName());
