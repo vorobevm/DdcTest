@@ -5,41 +5,65 @@ using System.Data.SqlClient;
 
 namespace ConsoleApplication3
 {
-    public class DDCRoutines
+    public class Period
     {
-        DbOperations dbContext;
-        Supplier newSupplier;
-        public Period newPeriod;
+        public string Id;
+        public DateTime StartDate;
+        public DateTime FinishDate;
+        public string Name;
 
-        public DDCRoutines(DbOperations db)
+        public Period(string id, DateTime startDate, DateTime finishDate, string name)
         {
-            dbContext = db;
-            newSupplier = new Supplier();
+            Id = id;
+            StartDate = startDate;
+            FinishDate = finishDate;
+            Name = name;
         }
+    }
 
-        public class Period
+    public class Supplier
+    {
+        public string Id;
+        public string Title;
+    }
+
+    public class DbOperations
+    {
+        private SqlConnection conn;
+
+        public DbOperations(string ConnectionString)
         {
-            public string Id;
-            public DateTime StartDate;
-            public DateTime FinishDate;
-            public string Name;
-            
-            public Period(string id, DateTime startDate, DateTime finishDate, string name)
+            conn = new SqlConnection(ConnectionString);
+            try
             {
-                Id = id;
-                StartDate = startDate;
-                FinishDate = finishDate;
-                Name = name;
+                conn.Open();
             }
+            catch
+            {
+                throw new Exception("Can't open a connection");
+            }
+
         }
 
+        public string GetState()
+        {
+            return conn.State.ToString();
+        }
+
+        public SqlConnection GetConnection()
+        {
+            return conn;
+        }
+    }
+
+    public static class DDCRoutinesStatic
+    {
 
         /// <summary>
         /// Creates a new period in DDC.Period table. Will work till Q3 2099 inclusive.
-        /// Also fills the fields of this.newPeriod object.
         /// </summary>
         /// <returns>Period object</returns>
-        public Period CreateNewPeriod()
+        public static Period CreateNewPeriod(DbOperations dbContext)
         {
             SqlCommand sql = new SqlCommand("insert into ddc.ddc.period (id, StartDate, finishdate, name) " +
                                             "select id + 1, DATEADD(day, 1, FinishDate), dateadd(month, 3, FinishDate)," +
@@ -52,7 +76,7 @@ namespace ConsoleApplication3
             var reader = sql.ExecuteReader();
             if (reader.Read())
             {
-                newPeriod = new Period(reader.GetValue(0).ToString(), DateTime.Parse(reader.GetValue(1).ToString()), DateTime.Parse(reader.GetValue(2).ToString()), reader.GetValue(3).ToString());
+                Period newPeriod = new Period(reader.GetValue(0).ToString(), DateTime.Parse(reader.GetValue(1).ToString()), DateTime.Parse(reader.GetValue(2).ToString()), reader.GetValue(3).ToString());
                 return newPeriod;
             }
             else
@@ -66,15 +90,15 @@ namespace ConsoleApplication3
         /// Also fills the fields of this.newPeriod object.
         /// </summary>
         /// <returns>DDC.Period.id value</returns>
-        public string CreateNewPeriodGetId()
+        public static string CreateNewPeriodGetId(DbOperations dbContext)
         {
-            return CreateNewPeriod().Id;
+            return CreateNewPeriod(dbContext).Id;
         }
 
         /// <summary>
         /// Removes period from DDC.Period table by id.
         /// </summary>
-        public void RemovePeriod(string id)
+        public static void RemovePeriod(string id, DbOperations dbContext)
         {
             SqlCommand sql = new SqlCommand("delete from ddc.ddc.Period where id = " + id, dbContext.GetConnection());
             sql.ExecuteNonQuery();
@@ -83,73 +107,51 @@ namespace ConsoleApplication3
         /// <summary>
         /// Removes last created period from DDC.Period table.
         /// </summary>
-        public void RemoveLastPeriod()
+        public static void RemoveLastPeriod(DbOperations dbContext)
         {
             SqlCommand sql = new SqlCommand("delete from ddc.ddc.Period where id in (select top 1 id from ddc.ddc.Period order by id desc)", dbContext.GetConnection());
             sql.ExecuteNonQuery();
-        }
-
-        public class Supplier
-        {
-            public string Id;
-            public string Title;
         }
 
         /// <summary>
         /// Creates a new supplier with random title in DDC.Supplier table. 
         /// Also fills the fields of this.newSupplier object.
         /// </summary>
-        public Supplier CreateNewSupplier()
+        public static Supplier CreateNewSupplier(DbOperations dbContext)
         {
-            this.newSupplier.Title = "TEST_" + RandomString(37);
-            SqlCommand sql = new SqlCommand("insert into ddc.ddc.supplier (Title, IsVirtual) values ('" + this.newSupplier.Title + "',0)", dbContext.GetConnection());
+            Supplier newSupplier = new Supplier();
+            newSupplier.Title = "TEST_" + RandomString(37);
+            SqlCommand sql = new SqlCommand("insert into ddc.ddc.supplier (Title, IsVirtual) values ('" + newSupplier.Title + "',0)", dbContext.GetConnection());
             sql.ExecuteNonQuery();
-            sql = new SqlCommand("select id from ddc.ddc.Supplier where Title = '" + this.newSupplier.Title + "' order by id desc", dbContext.GetConnection());
+            sql = new SqlCommand("select id from ddc.ddc.Supplier where Title = '" + newSupplier.Title + "' order by id desc", dbContext.GetConnection());
             var reader = sql.ExecuteReader();
+            
             if (reader.Read())
             {
-                this.newSupplier.Id = reader.GetValue(0).ToString();
+                newSupplier.Id = reader.GetValue(0).ToString();
             }
             else
             {
                 throw new Exception("Supplier wasn't created!");
             }
-            return this.newSupplier;
+            return newSupplier;
         }
 
         /// <summary>
         /// Remove supplier by Title. If no name specified - remove the supplier created during current session.
         /// </summary>
         /// <param name="supplierTitle">Name of supplier to be removed.</param>
-        public void RemoveSupplier(string supplierTitle = "")
+        public static void RemoveSupplier(DbOperations dbContext, string supplierTitle)
         {
-            if (supplierTitle == "")
-            {
-                supplierTitle = this.newSupplier.Title;
-            }
             SqlCommand sql = new SqlCommand("delete from ddc.ddc.supplier where Title = '" + supplierTitle + "'", dbContext.GetConnection());
             sql.ExecuteNonQuery();
-        }
-
-        public string GetSupplierName()
-        {
-            return newSupplier.Title;
-        }
-
-        public string GetSupplierId()
-        {
-            return newSupplier.Id;
         }
 
         /// <summary>
         /// Create new Contract using provided data. Output - DDC.Contract.Id.
         /// </summary>
-        public string CreateContract(string SupplierId, DateTime SignDate, DateTime StartDate, DateTime FinishDate)
+        public static string CreateContract(DbOperations dbContext, string SupplierId, DateTime SignDate, DateTime StartDate, DateTime FinishDate)
         {
-            if (SupplierId == "")
-            {
-                SupplierId = this.newSupplier.Id;
-            }
             Random rnd = new Random();
             string ContractNumber = "TEST_" + RandomString(4) + rnd.Next().ToString();
             SqlCommand sql = new SqlCommand("insert into ddc.ddc.Contract(ContractNumber, ContractSignDate, StartDate, FinishDate, CreateDate, CreateUser, EditDate, EditUser, SupplierId)" +
@@ -170,16 +172,16 @@ namespace ConsoleApplication3
         /// <summary>
         /// Remove Contract by DDC.Contract.Id
         /// </summary>
-        public void RemoveContractById(string ContractId)
+        public static void RemoveContractById(DbOperations dbContext, string ContractId)
         {
-            SqlCommand sql = new SqlCommand("delete from ddc.ddc.Contract where Id=" + ContractId+ ")", dbContext.GetConnection());
+            SqlCommand sql = new SqlCommand("delete from ddc.ddc.Contract where Id=" + ContractId + ")", dbContext.GetConnection());
             sql.ExecuteNonQuery();
         }
 
         /// <summary>
         /// Create new Condition using provided data. Output - DDC.Condition.Id.
         /// </summary>
-        public string CreateCondition(DateTime StartDate, DateTime FinishDate, string ContractId, DateTime CreateDate)
+        public static string CreateCondition(DbOperations dbContext, DateTime StartDate, DateTime FinishDate, string ContractId, DateTime CreateDate)
         {
             SqlCommand sql = new SqlCommand("insert into ddc.ddc.condition (StartDate, FinishDate, AmountPercent, AmountQty, ContractId, CreateDate, CreateUser, EditDate, EditUser, Status, AllBrandsSelected, AllProductsSelected, BusinessDomainId, IsDeleted)" +
             "Values(cast('" + StartDate.ToString() + "' as Datetime), cast('" + FinishDate.ToString() + "' as Datetime), 100, 1, " + ContractId + ", SYSDATETIME(), 'TEST', SYSDATETIME(), 'TEST', 1, 0, 0, 2, 0)", dbContext.GetConnection());
@@ -202,7 +204,7 @@ namespace ConsoleApplication3
         /// <summary>
         /// Remove Condition by DDC.Condition.Id
         /// </summary>
-        public void RemoveConditionById(string ConditionId)
+        public static void RemoveConditionById(DbOperations dbContext, string ConditionId)
         {
             SqlCommand sql = new SqlCommand("delete ddc.ddc.Condition where id = '" + ConditionId + "'", dbContext.GetConnection());
             sql.ExecuteNonQuery();
@@ -229,7 +231,7 @@ namespace ConsoleApplication3
         /// <param name="ConditionId">DDC.Condition.id value</param>
         /// <param name="LinkedEntityId"></param>
         /// <returns>DDC.RuleOfCalculation.id</returns>
-        private string CreateRuleOfCalc(RuleType Type, string ConditionId, string LinkedEntityId)
+        private static string CreateRuleOfCalc(DbOperations dbContext, RuleType Type, string ConditionId, string LinkedEntityId)
         {
             SqlCommand sql = new SqlCommand("insert into ddc.ddc.RuleOfCalculating (Type, ConditionId,LinkedEntityId)" +
            "Values(" + (int)Type + "," + ConditionId + "," + LinkedEntityId + ")", dbContext.GetConnection());
@@ -249,7 +251,7 @@ namespace ConsoleApplication3
         /// <summary>
         /// Remove DDC.RuleOfCalculating by Type, ConditionId, LinkedEntityId
         /// </summary>
-        public void RemoveRuleOfCalc(RuleType Type, string ConditionId, string LinkedEntityId)
+        public static void RemoveRuleOfCalc(DbOperations dbContext, RuleType Type, string ConditionId, string LinkedEntityId)
         {
             SqlCommand sql = new SqlCommand("delete from ddc.ddc.RuleOfCalculating where" +
                 "Type = " + Type.ToString() +
@@ -262,45 +264,45 @@ namespace ConsoleApplication3
         /// Remove DDC.RuleOfCalculating by Id
         /// </summary>
         /// <param name="id"></param>
-        public void RemoveRuleOfCalc(string id)
+        public static void RemoveRuleOfCalc(DbOperations dbContext, string id)
         {
             SqlCommand sql = new SqlCommand("delete from ddc.ddc.RuleOfCalculating where Id = " + id, dbContext.GetConnection());
             sql.ExecuteNonQuery();
         }
 
-        public string CreateRuleOfCalcArticle(string ConditionId, string ArticleID)
+        public static string CreateRuleOfCalcArticle(DbOperations dbContext, string ConditionId, string ArticleID)
         {
-            return CreateRuleOfCalc(RuleType.Article, ConditionId, ArticleID);
+            return CreateRuleOfCalc(dbContext, RuleType.Article, ConditionId, ArticleID);
         }
 
-        public string CreateRuleOfCalcProductGroup(string ConditionId, string ProductGroupId)
+        public static string CreateRuleOfCalcProductGroup(DbOperations dbContext, string ConditionId, string ProductGroupId)
         {
-            return CreateRuleOfCalc(RuleType.ProductGroup, ConditionId, ProductGroupId);
+            return CreateRuleOfCalc(dbContext, RuleType.ProductGroup, ConditionId, ProductGroupId);
         }
 
-        public string CreateRuleOfCalcDepartment(string ConditionId, string DepartmentId)
+        public static string CreateRuleOfCalcDepartment(DbOperations dbContext, string ConditionId, string DepartmentId)
         {
-            return CreateRuleOfCalc(RuleType.Department, ConditionId, DepartmentId);
+            return CreateRuleOfCalc(dbContext, RuleType.Department, ConditionId, DepartmentId);
         }
 
-        public string CreateRuleOfCalcBusinessDomain(string ConditionId, string BusinessDomainId)
+        public static string CreateRuleOfCalcBusinessDomain(DbOperations dbContext, string ConditionId, string BusinessDomainId)
         {
-            return CreateRuleOfCalc(RuleType.BusinessDomain, ConditionId, BusinessDomainId);
+            return CreateRuleOfCalc(dbContext, RuleType.BusinessDomain, ConditionId, BusinessDomainId);
         }
 
-        public string CreateRuleOfCalcBrand(string ConditionId, string BrandId)
+        public static string CreateRuleOfCalcBrand(DbOperations dbContext, string ConditionId, string BrandId)
         {
-            return CreateRuleOfCalc(RuleType.Brand, ConditionId, BrandId);
+            return CreateRuleOfCalc(dbContext, RuleType.Brand, ConditionId, BrandId);
         }
 
-        public string CreateRuleOfCalcDistributor(string ConditionId, string SupplierId)
+        public static string CreateRuleOfCalcDistributor(DbOperations dbContext, string ConditionId, string SupplierId)
         {
-            return CreateRuleOfCalc(RuleType.Distributor, ConditionId, SupplierId);
+            return CreateRuleOfCalc(dbContext, RuleType.Distributor, ConditionId, SupplierId);
         }
 
-        public string CreateRuleOfCalcInvoiceRecipient(string ConditionId, string InvoiceRecipientId)
+        public static string CreateRuleOfCalcInvoiceRecipient(DbOperations dbContext, string ConditionId, string InvoiceRecipientId)
         {
-            return CreateRuleOfCalc(RuleType.InvoiceRecipient, ConditionId, InvoiceRecipientId);
+            return CreateRuleOfCalc(dbContext, RuleType.InvoiceRecipient, ConditionId, InvoiceRecipientId);
         }
 
         /// <summary>
@@ -321,18 +323,18 @@ namespace ConsoleApplication3
         /// <param name="ROWVER"></param>
         /// <param name="WAEHRUNG">Currency in 3-char ISO code</param>
         /// <returns></returns>
-        public void CreateGoodsRecord(string SAP_CODE, string POS_NO, string BUCH_NO, string PREIS, string BUCH_SUB_TYP, string ART_NO, DateTime WARENEINGANG, string MENGE, string SupplierId, string BESTELL_NO, string BS_POS, string ROWVER, string WAEHRUNG = "SEK")
+        public static void CreateGoodsRecord(DbOperations dbContext, string SAP_CODE, string POS_NO, string BUCH_NO, string PREIS, string BUCH_SUB_TYP, string ART_NO, DateTime WARENEINGANG, string MENGE, string SupplierId, string BESTELL_NO, string BS_POS, string ROWVER, string WAEHRUNG = "SEK")
         {
-            SqlCommand sql = new SqlCommand("insert into ddc.ddc.GoodsRecord (SAP_CODE, POS_NO, BUCH_NO, PREIS, BUCH_SUB_TYP, ART_NO, WARENEINGANG, MENGE, LIEF_NO, BESTELL_NO, BS_POS, ROWVER, WAEHRUNG)" + " Values('" + SAP_CODE + 
-                "'," + POS_NO + "," + 
-                BUCH_NO + "," + 
-                PREIS + ", '" + 
-                BUCH_SUB_TYP + "'," + 
-                ART_NO + "," + 
-                "cast ('" + WARENEINGANG.ToString() + "' as Date)," + 
+            SqlCommand sql = new SqlCommand("insert into ddc.ddc.GoodsRecord (SAP_CODE, POS_NO, BUCH_NO, PREIS, BUCH_SUB_TYP, ART_NO, WARENEINGANG, MENGE, LIEF_NO, BESTELL_NO, BS_POS, ROWVER, WAEHRUNG)" + " Values('" + SAP_CODE +
+                "'," + POS_NO + "," +
+                BUCH_NO + "," +
+                PREIS + ", '" +
+                BUCH_SUB_TYP + "'," +
+                ART_NO + "," +
+                "cast ('" + WARENEINGANG.ToString() + "' as Date)," +
                 MENGE + "," +
-                SupplierId + "," + 
-                BESTELL_NO + "," + 
+                SupplierId + "," +
+                BESTELL_NO + "," +
                 BS_POS + ",'" +
                 ROWVER + "', '" +
                 WAEHRUNG + "')", dbContext.GetConnection());
@@ -350,21 +352,21 @@ namespace ConsoleApplication3
         /// <param name="ART_NO">Article number</param>
         /// <param name="SupplierId"></param>
         /// <returns></returns>
-        public Boolean CheckExpectedPeriodCalc(string PeriodId, string ConditionId, string Status, string Discount, string SAP_CODE, string ART_NO, string SupplierId)
+        public static Boolean CheckExpectedPeriodCalc(DbOperations dbContext, string PeriodId, string ConditionId, string Status, string Discount, string SAP_CODE, string ART_NO, string SupplierId)
         {
-// TODO Need to be tested on real data. Maybe, not count(*) should be used to check the results.
-            SqlCommand sql = new SqlCommand("select count(*) from ddc.ddc.PeriodCalculation" + 
+            // TODO Need to be tested on real data. Maybe, not count(*) should be used to check the results.
+            SqlCommand sql = new SqlCommand("select count(*) from ddc.ddc.PeriodCalculation" +
                 " where PeriodId=" + PeriodId +
                 " AND ConditionId=" + ConditionId +
                 " AND Status=" + Status +
                 " AND Discount=" + Discount +
                 " AND SAP_CODE='" + SAP_CODE + "'" +
-                " AND ART_NO =" + ART_NO + 
+                " AND ART_NO =" + ART_NO +
                 " AND LIEF_NO='" + SupplierId + "'", dbContext.GetConnection());
             var reader = sql.ExecuteReader();
             if (reader.Read())
             {
-                if (Int32.Parse(reader.GetValue(0).ToString())>0)
+                if (Int32.Parse(reader.GetValue(0).ToString()) > 0)
                 {
                     return true;
                 }
@@ -372,7 +374,7 @@ namespace ConsoleApplication3
                 {
                     return false;
                 }
-                
+
             }
             else
             {
@@ -384,7 +386,7 @@ namespace ConsoleApplication3
         /// <summary>
         /// Get (new) article number that doesn't exist in GoodsRecord.ART_NO.
         /// </summary>
-        public string GetNewArticle()
+        public static string GetNewArticle(DbOperations dbContext)
         {
             Random rnd = new Random();
             int newArt;
@@ -403,7 +405,7 @@ namespace ConsoleApplication3
         /// <summary>
         /// Get (new) store SAP_CODE that doesn't exist in GoodsRecord.SAP_CODE.
         /// </summary>
-        public string GetNewStore()
+        public static string GetNewStore(DbOperations dbContext)
         {
             Random rnd = new Random();
             SqlDataReader reader;
@@ -417,7 +419,7 @@ namespace ConsoleApplication3
                 reader = sql.ExecuteReader();
             }
             while (reader.HasRows);
-            return store;            
+            return store;
         }
 
         /// <summary>
@@ -425,18 +427,18 @@ namespace ConsoleApplication3
         /// </summary>
         /// <param name="ExcludedStore"></param>
         /// <returns></returns>
-        public string GetNewStore(string ExcludedStore)
+        public static string GetNewStore(DbOperations dbContext, string ExcludedStore)
         {
-            string store = "";
+            string store;
             do
             {
-                store = GetNewStore();
+                store = GetNewStore(dbContext);
             }
             while (store == ExcludedStore);
             return store;
         }
 
-        public string RandomString(int size)
+        public static string RandomString(int size)
         {
             StringBuilder builder = new StringBuilder();
             Random random = new Random();

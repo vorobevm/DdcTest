@@ -15,18 +15,19 @@ namespace ConsoleApplication3
             //DbConnect db = new DbConnect("Server=.\\MSSQL14;Database=DDC;User Id=test_ddc;Password = test3r;");
             DbOperations db = new DbOperations("data source=.\\mssql14;initial catalog=ddc;integrated security=false;user id=test_ddc;password=test3r;connect timeout=60000;encrypt=False;trustservercertificate=False;MultipleActiveResultSets=True;App=EntityFramework");
             DDCRoutines ddc = new DDCRoutines(db);
-            Console.WriteLine(db.GetState());
-            Console.WriteLine(ddc.CreateNewPeriod());
-            //db.RemoveLastPeriod();
-            ddc.CreateNewSupplier();
-            Console.WriteLine(ddc.GetSupplierName());
-            //db.RemoveSupplier();
-            string contract = ddc.CreateContract(ddc.GetSupplierId(), DateTime.Now, DateTime.Parse("2015/03/05"), DateTime.Parse("2016/03/05"));
-            Console.WriteLine("New contract: "+contract);
-            string condition = ddc.CreateCondition(DateTime.Now, DateTime.Now.AddYears(1), contract, DateTime.Now);
-            Console.WriteLine("New condition: " + condition);
-            ddc.RemoveCondition(condition);
-            ddc.CreateGoodsRecord("W123", "1", "1", "255.0000", "WU", "123456", DateTime.Now, "1", "100005", "123", "567", ddc.RandomString(10), ddc.RandomString(3));
+            //Console.WriteLine(db.GetState());
+
+            string store = ddc.GetNewStore("");
+            string article = ddc.GetNewArticle();
+            string period = ddc.CreateNewPeriod().Id;
+            DDCRoutines.Supplier supp = ddc.CreateNewSupplier();
+            string contractId = ddc.CreateContract(supp.Id, DateTime.Now, ddc.newPeriod.StartDate.AddDays(5), DateTime.Now.AddYears(1));
+            string conditionId = ddc.CreateCondition(ddc.newPeriod.StartDate.AddDays(10), ddc.newPeriod.FinishDate, contractId, DateTime.Now);
+            ddc.CreateRuleOfCalcArticle(conditionId, article);
+            ddc.CreateGoodsRecord(store, "1", "1", "100", "WU", article, ddc.newPeriod.StartDate.AddDays(20), "5", supp.Id, "1", "1", "1", "SEK");
+            
+            
+
             bool result = ddc.CheckExpectedPeriodCalc("27", "23", "8", "75", "W001", "1182610", "7500005");
             if (result)
             {
@@ -37,6 +38,8 @@ namespace ConsoleApplication3
                 Console.WriteLine("Check Fail");
             }
             Console.ReadLine();
+
+            ddc.RemoveLastPeriod();
         } 
     }
 }
