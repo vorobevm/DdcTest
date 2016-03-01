@@ -408,7 +408,6 @@ namespace ConsoleApplication3
             Random rnd = new Random();
             SqlDataReader reader;
             string store;
-            char ch;
             do
             {
                 store = RandomString(1) + rnd.Next(100, 999).ToString();
