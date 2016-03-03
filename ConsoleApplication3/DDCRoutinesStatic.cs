@@ -159,7 +159,7 @@ namespace ConsoleApplication3
         {
             Random rnd = new Random();
             string contractNumber = "TEST_" + RandomString(4) + rnd.Next().ToString();
-            SqlCommand sql = new SqlCommand("insert into ddc.Contract(ContractNumber, ContractSignDate, StartDate, FinishDate, CreateDate, CreateUser, EditDate, EditUser, SupplierId) Values(@ContractNumbe', cast(@SignDate as Datetime), cast(@StartDate as Datetime), cast(@FinishDate as Datetime), SYSDATETIME(), 'TEST', SYSDATETIME(), 'TEST', @SupplierId)", dbContext.GetConnection());
+            SqlCommand sql = new SqlCommand("insert into ddc.Contract(ContractNumber, ContractSignDate, StartDate, FinishDate, CreateDate, CreateUser, EditDate, EditUser, SupplierId) Values(@ContractNumber, cast(@SignDate as Datetime), cast(@StartDate as Datetime), cast(@FinishDate as Datetime), SYSDATETIME(), 'TEST', SYSDATETIME(), 'TEST', @SupplierId)", dbContext.GetConnection());
             sql.Parameters.AddWithValue("@ContractNumber", contractNumber);
             sql.Parameters.AddWithValue("@SignDate", signDate.ToString());
             sql.Parameters.AddWithValue("@StartDate", startDate.ToString());
@@ -199,7 +199,7 @@ namespace ConsoleApplication3
             sql.Parameters.AddWithValue("@ContractId", contractId);
             sql.ExecuteNonQuery();
 
-            sql = new SqlCommand("select id from ddc.Condition WHERE StartDate = cast(@StartDate as Datetime) AND FinishDate = cast(@FinishDate' as Datetime) AND ContractId = @ContractId", dbContext.GetConnection());
+            sql = new SqlCommand("select id from ddc.Condition WHERE StartDate = cast(@StartDate as Datetime) AND FinishDate = cast(@FinishDate as Datetime) AND ContractId = @ContractId", dbContext.GetConnection());
             sql.Parameters.AddWithValue("@StartDate", startDate.ToString());
             sql.Parameters.AddWithValue("@FinishDate", finishDate.ToString());
             sql.Parameters.AddWithValue("@ContractId", contractId);
